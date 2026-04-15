@@ -1,0 +1,239 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum Theme {
+  light
+  dark
+}
+
+enum StrictMode {
+  hard
+  warn
+  grace
+}
+
+enum IntervalStatus {
+  pending
+  active
+  grace
+  completed
+  skipped
+  blocked
+}
+
+enum MealType {
+  breakfast
+  lunch
+  dinner
+  snack
+}
+
+enum StreakEventType {
+  earned
+  maintained
+  broken
+  warned
+}
+
+// ─── Users ────────────────────────────────────────────────────────────────────
+
+model User {
+  id              String    @id @default(uuid())
+  email           String    @unique
+  name            String
+  timezone        String    @default("Asia/Kolkata")
+  wakeTime        String    @default("06:00") // HH:mm
+  streakCount     Int       @default(0)
+  streakLastDate  DateTime? @db.Date
+  levelToday      Int       @default(0)
+  emailReminders  Boolean   @default(true)
+  theme           Theme     @default(light)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  timetables      Timetable[]
+  customTags      IntervalTag[]
+  dailyLogs       DailyLog[]
+  streakEvents    StreakEvent[]
+
+  @@map("users")
+}
+
+// ─── Timetables ───────────────────────────────────────────────────────────────
+
+model Timetable {
+  id          String    @id @default(uuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  isActive    Boolean   @default(false)
+  repeatDays  Int[]     // 0-6 (Sun-Sat)
+  validFrom   DateTime  @db.Date
+  validUntil  DateTime? @db.Date
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  intervals   Interval[]
+
+  @@map("timetables")
+}
+
+// ─── Interval Tags ────────────────────────────────────────────────────────────
+
+model IntervalTag {
+  id                String     @id @default(uuid())
+  userId            String?    // null = system tag
+  user              User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name              String
+  color             String     @default("#7F77DD")
+  icon              String     @default("Circle")  // lucide icon name
+  isSystem          Boolean    @default(false)
+  defaultStrict     Boolean    @default(false)
+  defaultStrictMode StrictMode @default(warn)
+  requiresLog       Boolean    @default(false)     // meal logging gate
+  emailRemind       Boolean    @default(false)
+  createdAt         DateTime   @default(now())
+
+  intervals         Interval[]
+
+  @@map("interval_tags")
+}
+
+// ─── Intervals ────────────────────────────────────────────────────────────────
+
+model Interval {
+  id                  String      @id @default(uuid())
+  timetableId         String
+  timetable           Timetable   @relation(fields: [timetableId], references: [id], onDelete: Cascade)
+  tagId               String
+  tag                 IntervalTag @relation(fields: [tagId], references: [id])
+  startTime           String      // "07:30"
+  endTime             String      // "08:30"
+  label               String
+  isStrict            Boolean     @default(false)
+  strictMode          StrictMode  @default(warn)
+  graceMinutes        Int         @default(15)
+  autoComplete        Boolean     @default(false)  // basic routine - no stats
+  requiresUserAction  Boolean     @default(true)
+  emailRemind         Boolean     @default(false)
+  sortOrder           Int         @default(0)
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  checklistItems      ChecklistItem[]
+  dailyLogs           DailyLog[]
+  academicPeriods     AcademicPeriod[]
+
+  @@map("intervals")
+}
+
+// ─── Checklist Items ──────────────────────────────────────────────────────────
+
+model ChecklistItem {
+  id          String   @id @default(uuid())
+  intervalId  String
+  interval    Interval @relation(fields: [intervalId], references: [id], onDelete: Cascade)
+  label       String
+  isBlocking  Boolean  @default(false)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  checklistLogs ChecklistLog[]
+
+  @@map("checklist_items")
+}
+
+// ─── Checklist Logs ───────────────────────────────────────────────────────────
+
+model ChecklistLog {
+  id              String        @id @default(uuid())
+  checklistItemId String
+  checklistItem   ChecklistItem @relation(fields: [checklistItemId], references: [id], onDelete: Cascade)
+  dailyLogId      String
+  dailyLog        DailyLog      @relation(fields: [dailyLogId], references: [id], onDelete: Cascade)
+  date            DateTime      @db.Date
+  checked         Boolean       @default(false)
+  checkedAt       DateTime?
+
+  @@unique([checklistItemId, dailyLogId])
+  @@map("checklist_logs")
+}
+
+// ─── Daily Logs ───────────────────────────────────────────────────────────────
+
+model DailyLog {
+  id              String         @id @default(uuid())
+  userId          String
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  intervalId      String
+  interval        Interval       @relation(fields: [intervalId], references: [id], onDelete: Cascade)
+  date            DateTime       @db.Date
+  status          IntervalStatus @default(pending)
+  completedAt     DateTime?
+  skippedAt       DateTime?
+  notes           String?
+  countsForStreak Boolean        @default(true)
+  countsForLevel  Boolean        @default(true)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  checklistLogs   ChecklistLog[]
+  mealLog         MealLog?
+
+  @@unique([userId, intervalId, date])
+  @@map("daily_logs")
+}
+
+// ─── Meal Logs ────────────────────────────────────────────────────────────────
+
+model MealLog {
+  id          String    @id @default(uuid())
+  dailyLogId  String    @unique
+  dailyLog    DailyLog  @relation(fields: [dailyLogId], references: [id], onDelete: Cascade)
+  items       String[]
+  mealType    MealType
+  loggedAt    DateTime  @default(now())
+
+  @@map("meal_logs")
+}
+
+// ─── Academic Periods ─────────────────────────────────────────────────────────
+
+model AcademicPeriod {
+  id           String   @id @default(uuid())
+  intervalId   String
+  interval     Interval @relation(fields: [intervalId], references: [id], onDelete: Cascade)
+  subject      String
+  room         String   @default("")
+  teacher      String   @default("")
+  dayOfWeek    Int      // 0=Sun, 1=Mon ... 6=Sat
+  periodStart  String   // "09:30"
+  periodEnd    String   // "10:20"
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("academic_periods")
+}
+
+// ─── Streak Events ────────────────────────────────────────────────────────────
+
+model StreakEvent {
+  id              String          @id @default(uuid())
+  userId          String
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date            DateTime        @db.Date
+  event           StreakEventType
+  streakCountAt   Int
+  createdAt       DateTime        @default(now())
+
+  @@map("streak_events")
+}
