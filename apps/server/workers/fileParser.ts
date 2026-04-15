@@ -1,5 +1,5 @@
 import { Worker, type Job } from 'bullmq'
-import { redis } from '../lib/redis'
+import { bullMQConnection } from '../lib/redis'
 import { prisma } from '../lib/prisma'
 
 interface FileParserJob {
@@ -23,7 +23,7 @@ export function fileParserWorker() {
       // 4. Emit socket event to client
     },
     {
-      connection: redis,
+      connection: bullMQConnection,
       concurrency: 3,
     }
   )

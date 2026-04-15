@@ -1,7 +1,7 @@
 import { Worker, type Job } from 'bullmq'
 import type { Server } from 'socket.io'
 import type { ServerToClientEvents, ClientToServerEvents, IntervalStatus } from '@timeflow/types'
-import { redis } from '../lib/redis'
+import { bullMQConnection } from '../lib/redis'
 import { prisma } from '../lib/prisma'
 import { emailQueue } from './queues'
 import { toZonedTime, format } from 'date-fns-tz'
@@ -152,7 +152,7 @@ export function minuteTickWorker(io: TFServer) {
         }
       }
     },
-    { connection: redis, concurrency: 5 }
+    { connection: bullMQConnection, concurrency: 5 }
   )
 
   worker.on('failed', (job, err) => {

@@ -1,5 +1,5 @@
 import { Worker, type Job } from 'bullmq'
-import { redis } from '../lib/redis'
+import { bullMQConnection } from '../lib/redis'
 import { prisma } from '../lib/prisma'
 import { renderAsync } from '@react-email/render'
 import React from 'react'
@@ -123,7 +123,7 @@ export function emailDispatchWorker() {
       }
     },
     {
-      connection: redis,
+      connection: bullMQConnection,
       concurrency: 5,
       // Retry failed emails up to 3 times with backoff
       defaultJobOptions: {

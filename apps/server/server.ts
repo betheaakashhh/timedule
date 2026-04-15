@@ -1,4 +1,4 @@
-import 'dotenv/config'
+
 import { createServer } from 'http'
 import { Server } from 'socket.io'
 import type { ServerToClientEvents, ClientToServerEvents } from '@timeflow/packages/types'
@@ -9,6 +9,12 @@ import { prisma } from './lib/prisma'
 
 const PORT = parseInt(process.env.SOCKET_PORT ?? '3001', 10)
 const ALLOWED_ORIGIN = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
+
+console.log('[ENV] REDIS_URL:', process.env.REDIS_URL ? 'loaded ✅' : 'missing ❌')
+console.log('[ENV] DATABASE_URL:', process.env.DATABASE_URL ? 'loaded ✅' : 'missing ❌')
+console.log('[ENV] SOCKET_PORT:', process.env.SOCKET_PORT ? 'loaded ✅' : 'missing ❌')
+console.log('[ENV] NEXT_PUBLIC_APP_URL:', process.env.NEXT_PUBLIC_APP_URL ? 'loaded ✅' : 'missing ❌')
+
 
 // ── HTTP server ───────────────────────────────────────────────────────────────
 const httpServer = createServer((req, res) => {

@@ -1,5 +1,5 @@
 import { Worker, type Job } from 'bullmq'
-import { redis } from '../lib/redis'
+import { bullMQConnection } from '../lib/redis'
 import { prisma } from '../lib/prisma'
 
 export function graceExpiryWorker() {
@@ -24,7 +24,7 @@ export function graceExpiryWorker() {
       console.log(`[GraceExpiry] Log ${dailyLogId} expired — marked skipped`)
     },
     {
-      connection: redis,
+      connection: bullMQConnection,
       concurrency: 10,
     }
   )

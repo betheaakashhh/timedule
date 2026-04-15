@@ -1,7 +1,7 @@
 import { Worker, type Job } from 'bullmq'
 import type { Server } from 'socket.io'
 import type { ServerToClientEvents, ClientToServerEvents } from '@timeflow/types'
-import { redis } from '../lib/redis'
+import { bullMQConnection } from '../lib/redis'
 import { prisma } from '../lib/prisma'
 import { emailQueue } from './queues'
 import { STREAK_MILESTONES } from '@timeflow/types'
@@ -95,7 +95,7 @@ export function streakEvalWorker(io: TFServer) {
         }
       }
     },
-    { connection: redis, concurrency: 2 }
+    { connection: bullMQConnection, concurrency: 2 }
   )
 
   worker.on('failed', (job, err) => {
